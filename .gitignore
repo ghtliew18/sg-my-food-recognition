@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Model files (too large for git)
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Dataset files
+sg_my_food_dataset/
+*.parquet
+
+# Temp
+tmp_*/
+*.tmp
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
