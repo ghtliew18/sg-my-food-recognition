@@ -7,6 +7,7 @@ Dataset generation and management for food recognition.
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -16,6 +17,21 @@ import pandas as pd
 import requests
 
 from .taxonomy import FOOD_TAXONOMY
+
+# Characters unsafe or awkward in directory names (cross-platform).
+_INVALID_DIR_CHARS = re.compile(r'[/\\:*?"<>|]+')
+
+
+def _sanitize_food_folder_name(label: str) -> str:
+    """Map a taxonomy label to a single filesystem directory name under images/."""
+    name = _INVALID_DIR_CHARS.sub("_", (label or "unknown").strip())
+    name = name.rstrip(". ")
+    return name or "unknown"
+
+
+def _is_img2dataset_shard_dir(path: Path) -> bool:
+    """img2dataset --output_format files uses zero-padded numeric shard folder names."""
+    return path.is_dir() and path.name.isdigit()
 
 
 class URLGenerator:
@@ -275,6 +291,60 @@ class DatasetGenerator:
         
         subprocess.run(cmd)
         print("\n✅ Download complete")
+        self._organize_images_by_label(images_dir)
+    
+    def _organize_images_by_label(self, images_dir: Path) -> None:
+        """
+        Move img2dataset shard output into images/<food name>/ for class-folder training layouts.
+
+        img2dataset writes to images/<shard_id>/<key>.{jpg,json,...}); this flattens to
+        images/<sanitized label>/<key>.* while preserving unique numeric keys.
+        """
+        if not images_dir.is_dir():
+            return
+        
+        shard_dirs = [p for p in images_dir.iterdir() if _is_img2dataset_shard_dir(p)]
+        if not shard_dirs:
+            return
+        
+        print("\n📁 Organizing images into ./images/<food name>/ …")
+        moved = 0
+        
+        for shard_dir in sorted(shard_dirs, key=lambda p: p.name):
+            for json_path in sorted(shard_dir.glob("*.json")):
+                if json_path.name == "_stats.json":
+                    continue
+                
+                try:
+                    with open(json_path, encoding="utf-8") as f:
+                        meta = json.load(f)
+                except Exception:
+                    continue
+                
+                if meta.get("status") != "success":
+                    continue
+                
+                label = meta.get("label") or meta.get("caption") or "unknown"
+                dest_dir = images_dir / _sanitize_food_folder_name(str(label))
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                
+                stem = json_path.stem
+                for p in shard_dir.glob(f"{stem}.*"):
+                    dest = dest_dir / p.name
+                    if dest.exists():
+                        continue
+                    shutil.move(str(p), str(dest))
+                    moved += 1
+            
+            # Remove shard folder if empty or only leftovers without matching pairs
+            try:
+                remaining = list(shard_dir.iterdir())
+                if not remaining:
+                    shard_dir.rmdir()
+            except OSError:
+                pass
+        
+        print(f"   Moved {moved} files into class folders under {images_dir}")
     
     def create_annotations(self) -> List[Dict]:
         """Step 3: Create annotations from downloaded images."""
@@ -283,6 +353,7 @@ class DatasetGenerator:
         print("=" * 60)
         
         images_dir = self.output_dir / "images"
+        self._organize_images_by_label(images_dir)
         annotations = []
         
         for json_path in images_dir.rglob("*.json"):
