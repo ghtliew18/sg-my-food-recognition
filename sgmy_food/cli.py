@@ -58,7 +58,10 @@ def cmd_generate_dataset(args):
         urls_per_term=args.urls_per_term,
         image_size=args.image_size,
     )
-    generator.run(skip_download=args.skip_download)
+    generator.run(
+        skip_download=args.skip_download,
+        skip_url_generation=args.skip_url_generation,
+    )
 
 
 def cmd_recognize(args):
@@ -120,6 +123,11 @@ def main():
     gen_dataset.add_argument("--urls-per-term", type=int, default=30, help="URLs per search term")
     gen_dataset.add_argument("--image-size", type=int, default=512, help="Image size")
     gen_dataset.add_argument("--skip-download", action="store_true", help="Skip img2dataset")
+    gen_dataset.add_argument(
+        "--skip-url-generation",
+        action="store_true",
+        help="Skip step 1; reuse existing image_urls.parquet in output-dir (resume after download failures)",
+    )
     gen_dataset.set_defaults(func=cmd_generate_dataset)
     
     # Recognize

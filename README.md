@@ -80,6 +80,14 @@ generator = DatasetGenerator(
 generator.run()
 ```
 
+If step 1 finished and wrote `image_urls.parquet` but step 2 (downloads) failed or was interrupted, skip URL generation and continue from downloads:
+
+```python
+generator.run(skip_url_generation=True)
+```
+
+This expects `./sg_my_food_dataset/image_urls.parquet` (or whatever `output_dir` you used). Step 2 runs again unless you also pass `skip_download=True`.
+
 ### Fine-tune with LoRA
 
 ```python
@@ -122,6 +130,9 @@ sgmy-food push-base -u your-username -m hong-sgmy-food-scanner
 
 # Generate dataset
 sgmy-food generate-dataset -o ./dataset
+
+# Resume from downloads (reuse image_urls.parquet in output dir)
+sgmy-food generate-dataset -o ./dataset --skip-url-generation
 
 # Recognize food
 sgmy-food recognize image.jpg --json

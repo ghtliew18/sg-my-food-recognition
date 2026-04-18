@@ -460,9 +460,32 @@ class DatasetGenerator:
         
         return training
     
-    def run(self, skip_download: bool = False) -> List[Dict]:
-        """Run full pipeline."""
-        self.generate_urls()
+    def run(
+        self,
+        skip_download: bool = False,
+        skip_url_generation: bool = False,
+    ) -> List[Dict]:
+        """
+        Run the dataset pipeline (URL list → download → annotations).
+
+        Parameters
+        ----------
+        skip_download : bool
+            If True, skip img2dataset. Use when images are already present for annotation steps.
+        skip_url_generation : bool
+            If True, skip step 1 and reuse ``{output_dir}/image_urls.parquet`` (e.g. after step 2
+            failed or was interrupted). Step 2 still runs unless ``skip_download`` is True.
+        """
+        url_path = self.output_dir / "image_urls.parquet"
+        if skip_url_generation:
+            if not url_path.is_file():
+                raise FileNotFoundError(
+                    f"skip_url_generation=True but {url_path} does not exist. "
+                    "Run step 1 first (skip_url_generation=False) or copy the parquet into output_dir."
+                )
+            print("Skipping step 1 (URL generation); using existing image_urls.parquet")
+        else:
+            self.generate_urls()
         
         if not skip_download:
             self.download_images()
